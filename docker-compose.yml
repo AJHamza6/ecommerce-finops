@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:6.0
+    restart: always
+    volumes:
+      - mongo-data:/data/db
+    ports:   
+      - "27017:27017"
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  seed:
+  image: ${COMPOSE_PROJECT_NAME}_backend
+  depends_on:
+    - mongo
+  entrypoint: ["node", "dist/scripts/seed.js"]
+  environment:
+    MONGO_URI: mongodb://mongo:27017/finops
+
+  backend:
+    build: ./backend
+    depends_on:
+      - mongo  
+      - redis
+    environment:
+      # database
+      MONGO_URI: mongodb://mongo:27017/finops
+      # cache
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # misc
+      JWT_SECRET: dev-secret
+      JWT_REFRESH_SECRET: dev-refresh
+      PORT: 4000
+    ports:
+      - "4000:4000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_BASE_ENDPOINT: http://localhost:4000
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mongo-data:
